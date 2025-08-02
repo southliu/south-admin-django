@@ -1,0 +1,57 @@
+
+## 用户表
+```sql
+CREATE TABLE `user` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
+  `username` VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+  `password` VARCHAR(128) NOT NULL COMMENT '加密密码',
+  `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
+  `status` TINYINT DEFAULT 1 COMMENT '状态 1:有效 0:禁用',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='用户表';
+```
+
+## 角色表
+```sql
+CREATE TABLE `role` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '角色ID',
+  `name` VARCHAR(50) NOT NULL UNIQUE COMMENT '角色名',
+  `description` VARCHAR(200) DEFAULT NULL COMMENT '角色描述',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='角色表';
+```
+
+## 权限表
+```sql
+CREATE TABLE `permission` (
+  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '权限ID',
+  `name` VARCHAR(100) NOT NULL UNIQUE COMMENT '权限名，如user:add',
+  `description` VARCHAR(200) DEFAULT NULL COMMENT '权限描述',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB COMMENT='权限表';
+```
+
+## 用户-角色关联表
+```sql
+CREATE TABLE `user_role` (
+  `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+  `role_id` BIGINT UNSIGNED NOT NULL COMMENT '角色ID',
+  PRIMARY KEY (`user_id`, `role_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`role_id`) REFERENCES `role`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='用户角色关联表';
+```
+
+## 角色-权限关联表
+```sql
+CREATE TABLE `role_permission` (
+  `role_id` BIGINT UNSIGNED NOT NULL COMMENT '角色ID',
+  `permission_id` BIGINT UNSIGNED NOT NULL COMMENT '权限ID',
+  PRIMARY KEY (`role_id`, `permission_id`),
+  FOREIGN KEY (`role_id`) REFERENCES `role`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`permission_id`) REFERENCES `permission`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB COMMENT='角色权限关联表';
+```
