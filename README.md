@@ -22,5 +22,11 @@ py manage.py startapp xxx
 ## 设置数据库
 编辑`south_admin/settings.py`修改`DATABASES`对应参数。
 
+## CLI生成数据库表
+```bash
+python manage.py makemigrations
+python manage.py migrate
+```
+
 ## 数据库操作
 参考`README_MYSQL.md`文件。

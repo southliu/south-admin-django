@@ -1,57 +1,43 @@
-
-## 用户表
+## 添加sql数据
 ```sql
-CREATE TABLE `user` (
-  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '用户ID',
-  `username` VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
-  `password` VARCHAR(128) NOT NULL COMMENT '加密密码',
-  `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
-  `status` TINYINT DEFAULT 1 COMMENT '状态 1:有效 0:禁用',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB COMMENT='用户表';
-```
+-- 开启事务确保原子性
+START TRANSACTION;
 
-## 角色表
-```sql
-CREATE TABLE `role` (
-  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '角色ID',
-  `name` VARCHAR(50) NOT NULL UNIQUE COMMENT '角色名',
-  `description` VARCHAR(200) DEFAULT NULL COMMENT '角色描述',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB COMMENT='角色表';
-```
+-- 插入用户表数据（密码已加密，明文为 admin123）
+INSERT INTO `user` (username, password, email, status) 
+VALUES 
+    ('admin', 'pbkdf2_sha256$1000000$GG2TQhyoZuwk6N9ZmvvffO$1s4bY4KNeIo9kJHLdyCpc8oapd4B1TiYaZ4iiHk52Io=', 'admin@example.com', 1),
+    ('user1', 'pbkdf2_sha256$600000$AbCdEfGh123$Y2ZzZ...', 'user1@example.com', 1);
 
-## 权限表
-```sql
-CREATE TABLE `permission` (
-  `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '权限ID',
-  `name` VARCHAR(100) NOT NULL UNIQUE COMMENT '权限名，如user:add',
-  `description` VARCHAR(200) DEFAULT NULL COMMENT '权限描述',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB COMMENT='权限表';
-```
+-- 插入角色表数据
+INSERT INTO `role` (name, description) 
+VALUES 
+    ('admin', '系统管理员'),
+    ('user', '普通用户');
 
-## 用户-角色关联表
-```sql
-CREATE TABLE `user_role` (
-  `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
-  `role_id` BIGINT UNSIGNED NOT NULL COMMENT '角色ID',
-  PRIMARY KEY (`user_id`, `role_id`),
-  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`role_id`) REFERENCES `role`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB COMMENT='用户角色关联表';
-```
+-- 插入权限表数据
+INSERT INTO `permission` (name, description) 
+VALUES 
+    ('user:add', '添加用户权限'),
+    ('menu:view', '查看菜单权限');
 
-## 角色-权限关联表
-```sql
-CREATE TABLE `role_permission` (
-  `role_id` BIGINT UNSIGNED NOT NULL COMMENT '角色ID',
-  `permission_id` BIGINT UNSIGNED NOT NULL COMMENT '权限ID',
-  PRIMARY KEY (`role_id`, `permission_id`),
-  FOREIGN KEY (`role_id`) REFERENCES `role`(`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`permission_id`) REFERENCES `permission`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB COMMENT='角色权限关联表';
+-- 插入菜单表数据
+INSERT INTO `menu` (label, labelEn, icon, `key`, rule) 
+VALUES 
+    ('仪表盘', 'Dashboard', 'la:tachometer-alt', '/dashboard', '/dashboard');
+
+-- 关联用户与角色
+INSERT INTO `user_role` (user_id, role_id) 
+VALUES 
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `role` WHERE name='admin')),
+    ((SELECT id FROM `user` WHERE username='user1'), (SELECT id FROM `role` WHERE name='user'));
+
+-- 关联角色与权限
+INSERT INTO `role_permission` (role_id, permission_id) 
+VALUES 
+    ((SELECT id FROM `role` WHERE name='admin'), (SELECT id FROM `permission` WHERE name='user:add')),
+    ((SELECT id FROM `role` WHERE name='admin'), (SELECT id FROM `permission` WHERE name='menu:view'));
+
+-- 提交事务
+COMMIT;
 ```
