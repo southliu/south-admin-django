@@ -1,3 +1,7 @@
 {
     "editor.tabSize": 4,
+    "cSpell.ignoreWords": [
+        "simplejwt",
+        "rolepermission",
+    ]
 }

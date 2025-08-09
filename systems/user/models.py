@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser
+from rest_framework import serializers
 
 from systems.role.models import Role
 
@@ -12,6 +13,7 @@ class User(AbstractBaseUser):
     status = models.SmallIntegerField(default=1, choices=((1, '启用'), (0, '禁用')), verbose_name='状态')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
+    roles = models.ManyToManyField(Role, related_name='users')
 
     USERNAME_FIELD = 'username'
     
@@ -22,6 +24,12 @@ class User(AbstractBaseUser):
         
     def __str__(self):
         return self.username
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ('password',)
+
 
 # 用户-角色关联表
 class UserRole(models.Model):

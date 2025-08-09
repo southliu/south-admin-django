@@ -29,4 +29,4 @@ python manage.py migrate
 ```
 
 ## 数据库操作
-参考`README_MYSQL.md`文件。
+数据库导入`init.sql`文件。
