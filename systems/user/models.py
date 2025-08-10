@@ -13,7 +13,7 @@ class User(AbstractBaseUser):
     status = models.SmallIntegerField(default=1, choices=((1, '启用'), (0, '禁用')), verbose_name='状态')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
-    roles = models.ManyToManyField(Role, related_name='users')
+    roles = models.ManyToManyField(Role, related_name='users', through='UserRole')
 
     USERNAME_FIELD = 'username'
     

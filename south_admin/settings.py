@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework_simplejwt',
     'systems.user.apps.UserConfig',
     'systems.menu.apps.MenuConfig',
     'systems.role.apps.RoleConfig',
@@ -78,12 +80,8 @@ WSGI_APPLICATION = 'south_admin.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'south_admin',
-        "USER": "root",
-        "PASSWORD": "your_password",
-        "HOST": "127.0.0.1",
-        "PORT": "3306",
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 

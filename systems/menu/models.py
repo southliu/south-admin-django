@@ -5,7 +5,7 @@ class Menu(models.Model):
     label = models.CharField(max_length=50, verbose_name='菜单名称')
     labelEn = models.CharField(max_length=50, verbose_name='英文名称')
     icon = models.CharField(max_length=50, null=True, blank=True, verbose_name='图标')
-    router = models.CharField(max_length=100, verbose_name='菜单路由')
+    router = models.CharField(max_length=100, null=True, blank=True, verbose_name='菜单路由')
     rule = models.CharField(max_length=100, null=True, verbose_name='路由规则')
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, 
                               null=True, blank=True, verbose_name='父菜单',

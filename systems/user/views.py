@@ -28,10 +28,15 @@ def login(request):
     
     try:
         user = User.objects.get(username=username)
-        # 使用check_password验证密码
-        if not check_password(password, user.password):
+        # 用户不存在则退出
+        if not user:
             return JsonResponse({'code': 500, 'message': '用户名或密码错误'}, status=500)
     except User.DoesNotExist:
+        return JsonResponse({'code': 500, 'message': '用户名或密码错误'}, status=500)
+
+    # 检查密码是否正确
+    password = make_password(password, salt='pbkdf2_sha256')
+    if not user.check_password(password):
         return JsonResponse({'code': 500, 'message': '用户名或密码错误'}, status=500)
 
     # 生成 JWT token
