@@ -26,17 +26,12 @@ def login(request):
     if not username or not password:
         return JsonResponse({'code': 500, 'message': '用户名和密码不能为空'}, status=500)
     
-    try:
-        user = User.objects.get(username=username)
-        # 用户不存在则退出
-        if not user:
-            return JsonResponse({'code': 500, 'message': '用户名或密码错误'}, status=500)
-    except User.DoesNotExist:
-        return JsonResponse({'code': 500, 'message': '用户名或密码错误'}, status=500)
+    # 密码加密
+    password = make_password(password, salt='salt_value', hasher='pbkdf2_sha256')
 
-    # 检查密码是否正确
-    password = make_password(password, salt='pbkdf2_sha256')
-    if not user.check_password(password):
+    try:
+        user = User.objects.get(username=username, password=password)
+    except User.DoesNotExist:
         return JsonResponse({'code': 500, 'message': '用户名或密码错误'}, status=500)
 
     # 生成 JWT token
