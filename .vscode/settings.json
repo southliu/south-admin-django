@@ -3,5 +3,6 @@
     "cSpell.ignoreWords": [
         "simplejwt",
         "rolepermission",
+        "rolemenu",
     ]
 }
