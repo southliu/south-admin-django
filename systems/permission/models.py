@@ -12,7 +12,7 @@ class Permission(models.Model):
         return {
             "id": self.menu.id if self.menu else None,
             "label": self.menu.label if self.menu else "",
-            "labelEn": self.menu.labelEn if self.menu else "",
+            "labelEn": self.menu.label_en if self.menu else "",
             "icon": self.menu.icon if self.menu else "",
             "key": self.menu.key if self.menu else "",
             "rule": self.menu.rule if self.menu else ""

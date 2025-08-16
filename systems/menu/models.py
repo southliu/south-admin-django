@@ -3,8 +3,9 @@ from django.utils import timezone
 
 class Menu(models.Model):
     label = models.CharField(max_length=50, verbose_name='菜单名称')
-    labelEn = models.CharField(max_length=50, verbose_name='英文名称')
+    label_en = models.CharField(max_length=50, verbose_name='英文名称')
     icon = models.CharField(max_length=50, null=True, blank=True, verbose_name='图标')
+    type = models.IntegerField(default=1, verbose_name='菜单类型,1为目录,2为菜单,3为按钮')
     router = models.CharField(max_length=100, null=True, blank=True, verbose_name='菜单路由')
     rule = models.CharField(max_length=100, null=True, verbose_name='路由规则')
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, 
@@ -92,12 +93,14 @@ class Menu(models.Model):
         data = {
             'id': self.id,
             'label': self.label,
-            'labelEn': self.labelEn,
+            'labelEn': self.label_en,
             'icon': self.icon,
             'router': self.router,
             'rule': self.rule,
+            'type': self.type,
             'order': self.order,
-            'is_visible': self.is_visible,
+            'isVisible': self.is_visible,
+            'parentId': self.parent_id,
             'children': children_data if children_data else []
         }
         return data

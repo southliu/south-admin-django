@@ -5,7 +5,7 @@ START TRANSACTION;
 -- 插入用户表数据（密码已加密，明文为 admin123）
 INSERT INTO `user` (username, password, email, status, created_at, updated_at) 
 VALUES 
-    ('admin', 'pbkdf2_sha256$1000000$salt_value$Q+ZFdck/KSLdKmNXI7To3l92Sj2fC3RJ1bHcRcW733E=', 'admin@example.com', 1, '2025-01-01 00:00:00', '2025-01-01 00:00:00'),
+    ('admin', 'pbkdf2_sha256$1000000$salt_value$SDPUcXVJks+NKuGoEH1iHjxzS1eVsWtkYnzFWSxm3AY=', 'admin@example.com', 1, '2025-01-01 00:00:00', '2025-01-01 00:00:00'),
     ('user1', 'pbkdf2_sha256$600000$AbCdEfGh123$Y2ZzZ...', 'user1@example.com', 1, '2025-01-01 00:00:00', '2025-01-01 00:00:00');
 
 -- 插入角色表数据
@@ -118,63 +118,63 @@ DELETE FROM menu WHERE router IN (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- 插入顶级菜单项
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id) VALUES
-('仪表盘', 'Dashboard', 'la:tachometer-alt', '/dashboard', '/dashboard', 0, 1, NOW(), NOW(), NULL),
-('组件', 'Components', 'fluent:box-20-regular', '/demo', NULL, 1, 1, NOW(), NOW(), NULL),
-('系统管理', 'System Management', 'ion:settings-outline', '/system', NULL, 2, 1, NOW(), NOW(), NULL),
-('内容管理', 'Content Management', 'majesticons:article-search-line', '/content', NULL, 3, 1, NOW(), NOW(), NULL),
-('外部链接', 'External Link', 'material-symbols:link', 'https://ant-design.antgroup.com', '/dashboard', 4, 1, NOW(), NOW(), NULL);
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id) VALUES
+('仪表盘', 'Dashboard', 2, 'la:tachometer-alt', '/dashboard', '/dashboard', 0, 1, NOW(), NOW(), NULL),
+('组件', 'Components', 1, 'fluent:box-20-regular', '/demo', NULL, 1, 1, NOW(), NOW(), NULL),
+('系统管理', 'System Management', 1, 'ion:settings-outline', '/system', NULL, 2, 1, NOW(), NOW(), NULL),
+('内容管理', 'Content Management', 1, 'majesticons:article-search-line', '/content', NULL, 3, 1, NOW(), NOW(), NULL),
+('外部链接', 'External Link', 2, 'material-symbols:link', 'https://ant-design.antgroup.com', '/dashboard', 4, 1, NOW(), NOW(), NULL);
 
 -- 插入组件子菜单（使用派生表解决子查询问题）
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '剪切板', 'Copy', NULL, '/demo/copy', '/demo/copy', 0, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '剪切板', 'Copy', 2, NULL, '/demo/copy', '/demo/copy', 0, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '水印', 'Watermark', NULL, '/demo/watermark', '/demo/watermark', 1, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '水印', 'Watermark', 2, NULL, '/demo/watermark', '/demo/watermark', 1, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '虚拟滚动', 'Virtual Scroll', NULL, '/demo/virtualScroll', '/demo/virtualScroll', 2, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '虚拟滚动', 'Virtual Scroll', 2, NULL, '/demo/virtualScroll', '/demo/virtualScroll', 2, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '富文本', 'Editor', NULL, '/demo/editor', '/demo/editor', 3, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '富文本', 'Editor', 2, NULL, '/demo/editor', '/demo/editor', 3, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '动态路由参数', 'Dynamic', NULL, '/demo/123/dynamic', '/demo/dynamic', 4, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '动态路由参数', 'Dynamic', 2, NULL, '/demo/123/dynamic', '/demo/dynamic', 4, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '层级1', 'Level1', NULL, '/demo/level1', NULL, 5, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '层级1', 'Level1', 1, NULL, '/demo/level1', NULL, 5, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo') AS parent_menu;
 
 -- 插入层级子菜单
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '层级2', 'Level2', NULL, '/demo/level1/level2', NULL, 0, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '层级2', 'Level2', 1, NULL, '/demo/level1/level2', NULL, 0, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo/level1') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '层级3', 'Level3', NULL, '/demo/level1/level2/level3', '/demo/watermark', 0, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '层级3', 'Level3', 2, NULL, '/demo/level1/level2/level3', '/demo/watermark', 0, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/demo/level1/level2') AS parent_menu;
 
 -- 插入系统管理子菜单
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '用户管理', 'User Management', NULL, '/system/user', '/authority/user', 0, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '用户管理', 'User Management', 2, NULL, '/system/user', '/authority/user', 0, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/system') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '菜单管理', 'Menu Management', NULL, '/system/menu', '/authority/menu', 1, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '菜单管理', 'Menu Management', 2, NULL, '/system/menu', '/authority/menu', 1, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/system') AS parent_menu;
 
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '角色管理', 'Role Management', NULL, '/system/role', '/authority/role', 1, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '角色管理', 'Role Management', 2, NULL, '/system/role', '/authority/role', 1, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/system') AS parent_menu;
 
 -- 插入内容管理子菜单
-INSERT INTO menu (label, labelEn, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
-SELECT '文章管理', 'Article Management', NULL, '/content/article', '/content/article', 0, 1, NOW(), NOW(), parent_menu.id
+INSERT INTO menu (label, label_en, type, icon, router, rule, `order`, is_visible, created_at, updated_at, parent_id)
+SELECT '文章管理', 'Article Management', 2, NULL, '/content/article', '/content/article', 0, 1, NOW(), NOW(), parent_menu.id
 FROM (SELECT id FROM menu WHERE router = '/content') AS parent_menu;
 
 -- 关联角色与菜单
