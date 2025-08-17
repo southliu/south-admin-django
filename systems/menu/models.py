@@ -12,10 +12,40 @@ class Menu(models.Model):
                               null=True, blank=True, verbose_name='父菜单',
                               related_name='children')
     order = models.IntegerField(default=0, verbose_name='显示顺序')
-    is_visible = models.BooleanField(default=True, verbose_name='是否可见')
+    state = models.IntegerField(default=1, verbose_name='状态,0为隐藏,1为显示')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
-
+    
+    # 添加软删除标识字段
+    is_deleted = models.IntegerField(default=0, verbose_name='是否删除')
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='删除时间')
+    
+    # 添加默认管理器，只返回未被软删除的记录
+    objects = models.Manager()
+    
+    # 添加一个自定义管理器，用于包含被软删除的记录
+    objects_with_deleted = models.Manager()
+    
+    # 默认管理器只返回未被软删除的记录
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=0)
+    
+    # 重写delete方法实现软删除
+    def delete(self):
+        self.is_deleted = 1
+        self.deleted_at = timezone.now()
+        self.save()
+    
+    # 真实删除方法
+    def hard_delete(self, using=None, keep_parents=False):
+        super(Menu, self).delete(using, keep_parents)
+    
+    # 恢复被软删除的记录
+    def restore(self):
+        self.is_deleted = 0
+        self.deleted_at = None
+        self.save()
+    
     class Meta:
         db_table = 'menu'
         verbose_name = '菜单'
@@ -24,12 +54,12 @@ class Menu(models.Model):
 
     def __str__(self):
         return self.label
-
+    
     def get_children(self):
         """
         获取直接子菜单
         """
-        return self.children.filter(is_visible=True).order_by('order')
+        return self.children.filter(state=True).order_by('order')
 
     def get_descendants(self):
         """
@@ -99,7 +129,7 @@ class Menu(models.Model):
             'rule': self.rule,
             'type': self.type,
             'order': self.order,
-            'isVisible': self.is_visible,
+            'state': self.state,
             'parentId': self.parent_id,
             'children': children_data if children_data else []
         }
