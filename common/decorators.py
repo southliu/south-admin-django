@@ -68,9 +68,11 @@ def auth_required(method='GET'):
                 })
             except Exception as e:
                 return JsonResponse({
-                    'code': 500,
-                    'message': f'服务器内部错误: {str(e)}',
-                    'data': {}
+                    'code': 401,
+                    'message': '无效的认证令牌',
+                    'data': {
+                        'error': f'服务器内部错误: {str(e)}',
+                    }
                 })
         return wrapper
     return decorator

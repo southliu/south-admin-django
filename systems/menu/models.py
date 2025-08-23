@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils import timezone
+from systems.permission.models import Permission
 
 class Menu(models.Model):
     label = models.CharField(max_length=50, verbose_name='菜单名称')
@@ -7,7 +8,8 @@ class Menu(models.Model):
     icon = models.CharField(max_length=50, null=True, blank=True, verbose_name='图标')
     type = models.IntegerField(default=1, verbose_name='菜单类型,1为目录,2为菜单,3为按钮')
     router = models.CharField(max_length=100, null=True, blank=True, verbose_name='菜单路由')
-    rule = models.CharField(max_length=100, null=True, verbose_name='路由规则')
+    permission = models.ForeignKey(Permission, on_delete=models.SET_NULL, 
+                                 null=True, blank=True, verbose_name='关联权限')
     parent = models.ForeignKey('self', on_delete=models.SET_NULL, 
                               null=True, blank=True, verbose_name='父菜单',
                               related_name='children')
@@ -126,7 +128,7 @@ class Menu(models.Model):
             'labelEn': self.label_en,
             'icon': self.icon,
             'router': self.router,
-            'rule': self.rule,
+            'rule': self.permission.name if self.permission else None,
             'type': self.type,
             'order': self.order,
             'state': self.state,

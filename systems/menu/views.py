@@ -1,11 +1,9 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
-from django.contrib.auth import get_user_model
 from systems.menu.models import Menu
 from systems.role.models import Role
 from common.decorators import auth_required
-
-User = get_user_model()
+from systems.permission.models import Permission
 
 # 列表接口
 @csrf_exempt
@@ -18,7 +16,8 @@ def list(request):
         # 通过角色获取关联的菜单，只显示type<3的数据
         menus = Menu.objects.filter(
             rolemenu__role__in=user_roles,
-            state=True,
+            state=1,
+            is_deleted=0,
             type__lt=3
         ).distinct().order_by('order')
         
@@ -53,16 +52,15 @@ def build_menu_tree(menus):
             'icon': menu.icon,
             'router': menu.router,
             'key': menu.router,  # 将router字段作为key字段返回
-            'rule': menu.rule,
+            'rule': menu.permission.name if menu.permission else None,
             'type': menu.type,
             'order': menu.order,
             'state': menu.state,
             'createdAt': menu.created_at.strftime('%Y-%m-%d %H:%M:%S'),
             'updatedAt': menu.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
         }
-        # 只有当children不为空时才添加到menu_data中
-        if menu.get_children().exists():
-            menu_data['children'] = []
+        # 初始化所有节点都有children字段
+        menu_data['children'] = []
         menu_dict[menu.id] = menu_data
     
     # 构建树形结构
@@ -71,21 +69,28 @@ def build_menu_tree(menus):
         menu_data = menu_dict[menu.id]
         # 如果有父菜单且父菜单在权限内，则添加到父菜单的children中
         if menu.parent_id and menu.parent_id in menu_dict:
-            # 确保父节点有children字段
-            if 'children' not in menu_dict[menu.parent_id]:
-                menu_dict[menu.parent_id]['children'] = []
             menu_dict[menu.parent_id]['children'].append(menu_data)
         else:
             # 否则作为根节点添加
             tree.append(menu_data)
     
-    # 按order字段排序
-    tree.sort(key=lambda x: x['order'])
-    # 对所有节点的children进行排序
-    def sort_children(items):
+    # 移除空的children字段
+    def remove_empty_children(items):
         for item in items:
-            if 'children' in item:
-                item['children'].sort(key=lambda x: x['order'])
+            if 'children' in item and item['children']:
+                remove_empty_children(item['children'])
+            elif 'children' in item and not item['children']:
+                del item['children']
+    
+    remove_empty_children(tree)
+    
+    # 按order字段排序
+    def sort_children(items):
+        if not items:
+            return
+        items.sort(key=lambda x: x['order'])
+        for item in items:
+            if 'children' in item and item['children']:
                 sort_children(item['children'])
     
     sort_children(tree)
@@ -103,13 +108,15 @@ def page(request):
         label = request.GET.get('label', '').strip()
         labelEn = request.GET.get('labelEn', '').strip()
         state = request.GET.get('state', None)
-        
+        rule = request.GET.get('rule', '').strip()
+
         # 获取用户的角色
         user_roles = Role.objects.filter(users=request.current_user)
         
         # 通过角色获取关联的菜单
         menus = Menu.objects.filter(
             rolemenu__role__in=user_roles,
+            is_deleted=0,
         ).distinct().order_by('order')
         
         if label:
@@ -129,9 +136,17 @@ def page(request):
         
         # 构建菜单树
         menu_tree = build_menu_tree(menus)
-
+        
+        # 新增针对权限名称(rule)的过滤
+        if rule:
+            filtered_menu_tree = [item for item in menu_tree if 
+                                 (item.get('permission') and rule.lower() in item['permission'].lower()) or
+                                 rule.lower() in str(item.get('label', '')).lower() or
+                                 rule.lower() in str(item.get('labelEn', '')).lower()]
+            menu_tree = filtered_menu_tree
+        
         # 获取总数
-        total = menus.count()
+        total = len(menu_tree)
         
         # 分页处理 - 只对最终结果进行分页
         start_index = (page - 1) * page_size
@@ -179,7 +194,7 @@ def create(request):
         type_val = data.get('type')
         icon = data.get('icon')
         router = data.get('router')
-        rule = data.get('rule')
+        rule = data.get('rule')  # 这里将rule作为权限名称使用
         order = data.get('order', 0)
         state = data.get('state', 1)
         parent_id = data.get('parentId')
@@ -191,6 +206,29 @@ def create(request):
                 'message': '缺少必要参数: label 或 type',
                 'data': {}
             })
+        
+        # 检查权限是否存在
+        if rule:
+            try:
+                # 尝试获取已存在的权限
+                permission = Permission.objects.get(name=rule)
+                # 如果权限已存在，返回错误信息
+                return JsonResponse({
+                    'code': 400,
+                    'message': '权限已存在',
+                    'data': {
+                        'permission_id': permission.id,
+                        'permission_name': permission.name
+                    }
+                })
+            except Permission.DoesNotExist:
+                # 权限不存在，创建新权限
+                permission = Permission.objects.create(
+                    name=rule,
+                    description=f"菜单 {label} 的权限"
+                )
+        else:
+            permission = None
         
         # 检查父菜单是否存在
         parent_menu = None
@@ -211,11 +249,17 @@ def create(request):
             type=type_val,
             icon=icon,
             router=router,
-            rule=rule,
+            permission=permission,
             order=order,
             state=state,
             parent=parent_menu
         )
+        
+        # 为当前用户的角色添加菜单关联
+        from systems.role.models import RoleMenu
+        user_roles = Role.objects.filter(users=request.current_user)
+        for role in user_roles:
+            RoleMenu.objects.get_or_create(role=role, menu=menu)
         
         # 返回成功响应
         return JsonResponse({
@@ -228,7 +272,7 @@ def create(request):
                 'type': menu.type,
                 'icon': menu.icon,
                 'router': menu.router,
-                'rule': menu.rule,
+                'permission': menu.permission.name if menu.permission else None,
                 'order': menu.order,
                 'state': menu.state,
                 'parentId': menu.parent.id if menu.parent else None,
@@ -317,7 +361,7 @@ def update(request, menu_id):
         type_val = data.get('type')
         icon = data.get('icon')
         router = data.get('router')
-        rule = data.get('rule')
+        rule = data.get('rule')  # 这里将rule作为权限名称使用
         order = data.get('order', 0)
         state = data.get('state', 1)
         parent_id = data.get('parentId')
@@ -349,13 +393,37 @@ def update(request, menu_id):
                     'data': {}
                 })
         
+        # 处理权限更新
+        permission = menu.permission
+        if rule and rule != (menu.permission.name if menu.permission else None):
+            try:
+                # 尝试获取已存在的权限
+                permission = Permission.objects.get(name=rule)
+                # 如果权限已存在，返回错误信息
+                return JsonResponse({
+                    'code': 400,
+                    'message': '权限已存在',
+                    'data': {
+                        'permission_id': permission.id,
+                        'permission_name': permission.name
+                    }
+                })
+            except Permission.DoesNotExist:
+                # 权限不存在，创建新权限
+                permission = Permission.objects.create(
+                    name=rule,
+                    description=f"菜单 {label} 的权限"
+                )
+        elif not rule:
+            permission = None
+        
         # 更新菜单
         menu.label = label
         menu.label_en = label_en
         menu.type = type_val
         menu.icon = icon
         menu.router = router
-        menu.rule = rule
+        menu.permission = permission
         menu.order = order
         menu.state = state
         menu.parent = parent_menu
@@ -372,7 +440,7 @@ def update(request, menu_id):
                 'type': menu.type,
                 'icon': menu.icon,
                 'router': menu.router,
-                'rule': menu.rule,
+                'rule': menu.permission.name if menu.permission else None,
                 'order': menu.order,
                 'state': menu.state,
                 'parentId': menu.parent.id if menu.parent else None,
@@ -387,6 +455,82 @@ def update(request, menu_id):
             'message': f'服务器内部错误: {str(e)}',
             'data': {}
         })
+
+
+# 修改菜单状态接口
+@csrf_exempt
+@auth_required('PUT')
+def change_state(request):
+    try:
+        # 解析请求体中的JSON数据
+        import json
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'code': 400,
+                'message': '请求数据格式错误',
+                'data': {}
+            })
+        
+        # 获取参数
+        menu_id = data.get('id')
+        state = data.get('state')
+        
+        # 参数校验
+        if menu_id is None:
+            return JsonResponse({
+                'code': 400,
+                'message': '缺少必要参数: id',
+                'data': {}
+            })
+        
+        if state is None:
+            return JsonResponse({
+                'code': 400,
+                'message': '缺少必要参数: state',
+                'data': {}
+            })
+        
+        # 验证state参数是否为有效值(0或1)
+        if state not in [0, 1]:
+            return JsonResponse({
+                'code': 400,
+                'message': 'state参数必须为0或1',
+                'data': {}
+            })
+        
+        # 检查菜单是否存在
+        try:
+            menu = Menu.objects.get(id=menu_id)
+        except Menu.DoesNotExist:
+            return JsonResponse({
+                'code': 404,
+                'message': '菜单不存在',
+                'data': {}
+            })
+        
+        # 更新菜单状态
+        menu.state = state
+        menu.save()
+        
+        # 返回成功响应
+        return JsonResponse({
+            'code': 200,
+            'message': '菜单状态更新成功',
+            'data': {
+                'id': menu.id,
+                'state': menu.state
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'服务器内部错误: {str(e)}',
+            'data': {}
+        })
+
 
 # 获取菜单详情接口
 @csrf_exempt
@@ -420,7 +564,7 @@ def detail(request):
             'type': menu.type,
             'icon': menu.icon,
             'router': menu.router,
-            'rule': menu.rule,
+            'rule': menu.permission.name if menu.permission else None,
             'order': menu.order,
             'state': menu.state,
             'parentId': menu.parent.id if menu.parent else None,

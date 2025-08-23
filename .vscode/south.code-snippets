@@ -1,0 +1,19 @@
+{
+  "demoUrls": {
+    "prefix": "demoUrls",
+    "description": "urls代码片段",
+    "body": [
+        "from django.urls import path",
+        "",
+        "from . import views",
+        "",
+        "urlpatterns = [",
+        "    path('page', views.page, name='page'),",
+        "    path('create', views.create, name='create'),",
+        "    path('<int:menu_id>', views.delete, name='delete'),",
+        "    path('update/<int:menu_id>', views.update, name='update'),",
+        "    path('detail', views.detail, name='detail'),",
+        "]",
+    ],
+  },
+}
