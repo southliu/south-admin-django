@@ -3,10 +3,10 @@ START TRANSACTION;
 
 
 -- 插入用户表数据（密码已加密，明文为 admin123）
-INSERT INTO `user` (username, password, email, status, created_at, updated_at) 
+INSERT INTO `user` (username, password, name, email, status, is_deleted, created_at, updated_at) 
 VALUES 
-    ('系统管理员', 'pbkdf2_sha256$1000000$salt_value$SDPUcXVJks+NKuGoEH1iHjxzS1eVsWtkYnzFWSxm3AY=', '系统管理员@example.com', 1, '2025-01-01 00:00:00', '2025-01-01 00:00:00'),
-    ('user1', 'pbkdf2_sha256$600000$AbCdEfGh123$Y2ZzZ...', 'user1@example.com', 1, '2025-01-01 00:00:00', '2025-01-01 00:00:00');
+    ('admin', 'pbkdf2_sha256$1000000$salt_value$SDPUcXVJks+NKuGoEH1iHjxzS1eVsWtkYnzFWSxm3AY=', '系统管理员', '系统管理员@example.com', 1, 0, '2025-01-01 00:00:00', '2025-01-01 00:00:00'),
+    ('user1', 'pbkdf2_sha256$600000$AbCdEfGh123$Y2ZzZ...', '普通用户', 'user1@example.com', 1, 0, '2025-01-01 00:00:00', '2025-01-01 00:00:00');
 
 -- 插入角色表数据
 INSERT INTO `role` (name, description, created_at, updated_at, is_deleted)
@@ -53,8 +53,8 @@ VALUES
 -- 关联用户与角色
 INSERT INTO `user_role` (user_id, role_id) 
 VALUES 
-    ((SELECT id FROM `user` WHERE username='系统管理员'), (SELECT id FROM `role` WHERE name='系统管理员')),
-    ((SELECT id FROM `user` WHERE username='user1'), (SELECT id FROM `role` WHERE name='user'));
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `role` WHERE name='系统管理员')),
+    ((SELECT id FROM `user` WHERE username='user1'), (SELECT id FROM `role` WHERE name='普通用户'));
 
 -- 关联角色与权限
 INSERT INTO `role_permission` (role_id, permission_id) 

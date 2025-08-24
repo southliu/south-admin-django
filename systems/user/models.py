@@ -8,6 +8,7 @@ from systems.role.models import Role
 class User(AbstractBaseUser):
     id = models.BigAutoField(primary_key=True, verbose_name='用户ID')
     username = models.CharField(max_length=50, unique=True, verbose_name='用户名')
+    name = models.CharField(max_length=100, null=True, blank=True, verbose_name='姓名')  # 添加姓名字段
     password = models.CharField(max_length=128, verbose_name='加密密码')  # 存储加密后的密码
     email = models.EmailField(max_length=100, null=True, blank=True, verbose_name='邮箱')
     phone = models.CharField(max_length=20, null=True, blank=True, verbose_name='电话')  # 添加电话字段

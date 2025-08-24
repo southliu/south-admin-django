@@ -11,12 +11,12 @@ uv sync
 
 ## 启动项目
 ```bash
-py manage.py runserver
+python manage.py runserver
 ```
 
 ## CLI创建项目
 ```bash
-py manage.py startapp xxx
+python manage.py startapp xxx
 ```
 
 ## 设置数据库

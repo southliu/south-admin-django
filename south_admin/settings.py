@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'systems.menu.apps.MenuConfig',
     'systems.role.apps.RoleConfig',
     'systems.permission.apps.PermissionConfig',
+    'dashboard.apps.DashboardConfig',
+    'contents.article.apps.ArticleConfig'
 ]
 
 MIDDLEWARE = [

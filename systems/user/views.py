@@ -1,3 +1,4 @@
+from os import name
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -231,19 +232,17 @@ def page(request):
             roles = user.get_active_roles()
             roles_name = []
             for role in roles:
-                if role.description:
-                    roles_name.append(role.description)
-                else:
-                    roles_name.append(role.name)
+                roles_name.append(role.name)
             
             user_items.append({
                 'id': user.id,
                 'username': user.username,
+                'name': user.name,
                 'email': user.email,
-                'phone': user.phone,  # 添加电话字段
+                'phone': user.phone,
                 'status': user.status,
                 'roleCount': role_count,
-                'rolesName': roles_name,  # 添加角色名称列表，优先使用description
+                'rolesName': roles_name,
                 'createdAt': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else None,
                 'updatedAt': user.updated_at.strftime('%Y-%m-%d %H:%M:%S') if user.updated_at else None,
             })
@@ -296,6 +295,7 @@ def detail(request):
         # 返回用户详情
         user_data = {
             'id': user.id,
+            'name': user.name,
             'username': user.username,
             'email': user.email,
             'phone': user.phone,  # 添加电话字段
@@ -337,6 +337,7 @@ def create(request):
         # 获取参数
         username = data.get('username')
         password = data.get('password')
+        name = data.get('name')
         email = data.get('email')
         phone = data.get('phone')  # 获取电话字段
         status = data.get('status', 1)
@@ -372,6 +373,7 @@ def create(request):
         user = User.objects.create(
             username=username,
             password=encrypted_password,
+            name=name,
             email=email,
             phone=phone,  # 添加电话字段
             status=status
@@ -401,6 +403,7 @@ def create(request):
             'data': {
                 'id': user.id,
                 'username': user.username,
+                'name': user.name,
                 'email': user.email,
                 'phone': user.phone,  # 添加电话字段
                 'status': user.status,
@@ -446,7 +449,8 @@ def update(request, user_id):
         username = data.get('username')
         password = data.get('password')
         email = data.get('email')
-        phone = data.get('phone')  # 获取电话字段
+        phone = data.get('phone')
+        name = data.get('name')
         status = data.get('status')
         roles = data.get('roleIds', [])  # 角色ID列表
         
@@ -475,6 +479,8 @@ def update(request, user_id):
             user.email = email
         if phone is not None:
             user.phone = phone
+        if name is not None:
+            user.name = name
         if status is not None:
             user.status = status
         user.save()
@@ -508,8 +514,9 @@ def update(request, user_id):
             'data': {
                 'id': user.id,
                 'username': user.username,
+                'name': user.name,
                 'email': user.email,
-                'phone': user.phone,  # 添加电话字段
+                'phone': user.phone,
                 'status': user.status,
                 'createdAt': user.created_at.strftime('%Y-%m-%d %H:%M:%S') if user.created_at else None,
                 'updatedAt': user.updated_at.strftime('%Y-%m-%d %H:%M:%S') if user.updated_at else None,
@@ -574,6 +581,7 @@ def list_users(request):
             user_items.append({
                 'id': user.id,
                 'username': user.username,
+                'name': user.name,
                 'email': user.email,
                 'phone': user.phone,
                 'status': user.status,
@@ -586,6 +594,71 @@ def list_users(request):
             'code': 200,
             'message': 'success',
             'data': user_items
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'服务器内部错误: {str(e)}',
+            'data': {}
+        })
+
+@csrf_exempt
+@auth_required('POST')
+def update_password(request):
+    try:
+        # 获取当前登录用户
+        current_user = request.current_user
+        
+        # 解析请求体中的JSON数据
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'code': 400,
+                'message': '请求数据格式错误',
+                'data': {}
+            })
+        
+        # 获取请求参数
+        old_password = data.get('oldPassword')
+        new_password = data.get('newPassword')
+        confirm_password = data.get('confirmPassword')
+        
+        # 参数校验
+        if not all([old_password, new_password, confirm_password]):
+            return JsonResponse({
+                'code': 400,
+                'message': '缺少必要参数',
+                'data': {}
+            })
+        
+        # 密码加密
+        password = make_password(old_password, salt='salt_value', hasher='pbkdf2_sha256')
+
+        # 验证旧密码是否正确
+        try:
+            user = User.objects.get(username=current_user.username, password=password)
+        except User.DoesNotExist:
+            return JsonResponse({'code': 500, 'message': '旧密码不正确'}, status=500)
+
+        # 验证新密码与确认密码是否一致
+        if new_password != confirm_password:
+            return JsonResponse({
+                'code': 400,
+                'message': '新密码与确认密码不一致',
+                'data': {}
+            })
+        
+        # 更新密码
+        new_password = make_password(new_password, salt='salt_value', hasher='pbkdf2_sha256')
+        user.password = new_password
+        user.save()
+        
+        return JsonResponse({
+            'code': 200,
+            'message': '密码修改成功',
+            'data': {}
         })
         
     except Exception as e:
