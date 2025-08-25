@@ -43,6 +43,7 @@ def page(request):
             article_items.append({
                 'id': article.id,
                 'title': article.title,
+                'content': article.content,
                 'author': article.author,
                 'status': article.status,
                 'createdAt': article.created_at.strftime('%Y-%m-%d %H:%M:%S') if article.created_at else None,
