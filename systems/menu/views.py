@@ -209,12 +209,21 @@ def create(request):
         order = data.get('order', 0)
         state = data.get('state', 1)
         parent_id = data.get('parentId')
+        actions = data.get('actions') # 快捷新增权限
         
         # 参数校验
         if not label or not type_val:
             return JsonResponse({
                 'code': 400,
                 'message': '缺少必要参数: label 或 type',
+                'data': {}
+            })
+        
+        # 权限操作操作但rule不存在
+        if not rule and actions:
+            return JsonResponse({
+                'code': 400,
+                'message': '权限标识不存在则无法快捷创建权限',
                 'data': {}
             })
         
@@ -266,11 +275,38 @@ def create(request):
             parent=parent_menu
         )
         
+        # 处理actions参数，为每个action创建对应的权限
+        if actions and rule:
+            for action in actions:
+                # 构造权限名称 /{rule}/{action}
+                action_permission_name = f"{rule}/{action}"
+                try:
+                    # 尝试获取已存在的权限
+                    action_permission = Permission.objects.get(name=action_permission_name)
+                except Permission.DoesNotExist:
+                    # 权限不存在，创建新权限
+                    action_permission = Permission.objects.create(
+                        name=action_permission_name,
+                        description=f"菜单 {label} 的 {action} 权限"
+                    )
+    
         # 为当前用户的角色添加菜单关联
         from systems.role.models import RoleMenu
         user_roles = Role.objects.filter(users=request.current_user)
         for role in user_roles:
             RoleMenu.objects.get_or_create(role=role, menu=menu)
+            
+            # 如果有actions，同时为角色添加这些action权限
+            if actions and rule:
+                for action in actions:
+                    action_permission_name = f"{rule}/{action}"
+                    try:
+                        action_permission = Permission.objects.get(name=action_permission_name)
+                        from systems.role.models import RolePermission
+                        RolePermission.objects.get_or_create(role=role, permission=action_permission)
+                    except Permission.DoesNotExist:
+                        # 如果权限不存在，则跳过
+                        pass
         
         # 返回成功响应
         return JsonResponse({
