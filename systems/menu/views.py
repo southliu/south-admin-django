@@ -13,16 +13,27 @@ def list(request):
         # 获取用户的角色
         user_roles = Role.objects.filter(users=request.current_user)
         
-        # 通过角色获取关联的菜单，只显示type<3的数据
+        # 通过角色获取关联的菜单，只显示type<3的数据，state过滤将在构建树时处理
         menus = Menu.objects.filter(
             rolemenu__role__in=user_roles,
-            state=1,
             is_deleted=0,
             type__lt=3
         ).distinct().order_by('order')
         
         # 构建菜单树
         menu_tree = build_menu_tree(menus)
+        
+        # 过滤掉state为0的节点
+        def filter_menu_tree_by_state(items):
+            filtered_items = []
+            for item in items:
+                if item['state'] == 1:  # 只保留state为1的节点
+                    if 'children' in item:
+                        item['children'] = filter_menu_tree_by_state(item['children'])
+                    filtered_items.append(item)
+            return filtered_items
+        
+        menu_tree = filter_menu_tree_by_state(menu_tree)
         
         return JsonResponse({
             'code': 200,
