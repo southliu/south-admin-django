@@ -307,6 +307,47 @@ def create(request):
                     except Permission.DoesNotExist:
                         # 如果权限不存在，则跳过
                         pass
+
+                # 添加对应的按钮菜单
+                if actions and rule:
+                    # 定义action到中文名称的映射
+                    action_names = {
+                        'create': '创建权限',
+                        'update': '更新权限',
+                        'delete': '删除权限',
+                        'detail': '详情权限',
+                        'export': '导出权限',
+                        'status': '状态权限'
+                    }
+                    
+                    for action in actions:
+                        # 获取action对应的中文名称，默认使用action名首字母大写
+                        name = action_names.get(action, action.capitalize())
+
+                        # 为每个action创建对应的按钮类型菜单
+                        action_menu_label = f"{label}-{name}"
+                        action_permission_name = f"{rule}/{action}"
+                        
+                        # 查找对应的权限
+                        try:
+                            action_permission = Permission.objects.get(name=action_permission_name)
+                            
+                            # 创建按钮菜单
+                            button_menu = Menu.objects.create(
+                                label=action_menu_label,
+                                label_en=f"{label_en or label} {action.capitalize()}" if label_en or label else "",
+                                type=3,  # 按钮类型
+                                permission=action_permission,
+                                parent=menu,  # 父菜单为当前创建的菜单
+                                order=order,  # 使用相同排序
+                                state=state   # 使用相同状态
+                            )
+                            
+                            # 将按钮菜单与角色关联
+                            RoleMenu.objects.get_or_create(role=role, menu=button_menu)
+                        except Permission.DoesNotExist:
+                            # 如果权限不存在则跳过
+                            pass
         
         # 返回成功响应
         return JsonResponse({
