@@ -13,9 +13,31 @@ def list(request):
         # 获取用户的角色
         user_roles = Role.objects.filter(users=request.current_user)
         
-        # 通过角色获取关联的菜单，只显示type<3的数据，state过滤将在构建树时处理
-        menus = Menu.objects.filter(
+        # 通过角色获取关联的菜单，只显示type<3的数据
+        user_menus = Menu.objects.filter(
             rolemenu__role__in=user_roles,
+            is_deleted=0,
+            type__lt=3
+        ).distinct()
+        
+        # 收集所有需要显示的菜单ID
+        menu_ids_to_show = set()
+        
+        # 添加用户直接拥有的菜单
+        for menu in user_menus:
+            menu_ids_to_show.add(menu.id)
+            
+        # 添加子菜单的祖先菜单（即使用户没有直接权限）
+        for menu in user_menus:
+            ancestors = menu.get_ancestors()
+            for ancestor in ancestors:
+                # 只添加state为1的祖先菜单
+                if ancestor.state == 1 and ancestor.type < 3 and ancestor.is_deleted == 0:
+                    menu_ids_to_show.add(ancestor.id)
+        
+        # 获取所有需要显示的菜单对象
+        menus = Menu.objects.filter(
+            id__in=menu_ids_to_show,
             is_deleted=0,
             type__lt=3
         ).distinct().order_by('order')
@@ -23,7 +45,7 @@ def list(request):
         # 构建菜单树
         menu_tree = build_menu_tree(menus)
         
-        # 过滤掉state为0的节点
+        # 过滤掉state为0的节点（以及它们的子节点）
         def filter_menu_tree_by_state(items):
             filtered_items = []
             for item in items:
@@ -125,10 +147,31 @@ def page(request):
         user_roles = Role.objects.filter(users=request.current_user)
         
         # 通过角色获取关联的菜单
-        menus = Menu.objects.filter(
+        user_menus = Menu.objects.filter(
             rolemenu__role__in=user_roles,
             is_deleted=0,
-        ).distinct().order_by('order')
+        ).distinct()
+        
+        # 收集所有需要显示的菜单ID
+        menu_ids_to_show = set()
+        
+        # 添加用户直接拥有的菜单
+        for menu in user_menus:
+            menu_ids_to_show.add(menu.id)
+            
+        # 添加子菜单的祖先菜单（即使用户没有直接权限）
+        for menu in user_menus:
+            ancestors = menu.get_ancestors()
+            for ancestor in ancestors:
+                # 只添加state为1的祖先菜单
+                if ancestor.state == 1 and ancestor.is_deleted == 0:
+                    menu_ids_to_show.add(ancestor.id)
+        
+        # 获取所有需要显示的菜单对象
+        menus = Menu.objects.filter(
+            id__in=menu_ids_to_show,
+            is_deleted=0,
+        ).distinct()
         
         if label:
             menus = menus.filter(label__icontains=label)
@@ -672,3 +715,196 @@ def detail(request):
             'message': f'服务器内部错误: {str(e)}',
             'data': {}
         })
+
+
+# 菜单树接口 - 返回用户已有权限和全部菜单列表
+@csrf_exempt
+@auth_required('GET')
+def tree(request):
+    try:
+        # 获取用户ID参数
+        user_id = request.GET.get('userId', 0)
+        
+        # 获取当前用户的角色
+        user_roles = Role.objects.filter(users=request.current_user)
+        
+        # 获取当前角色可以获取到的全部菜单列表
+        all_menus = Menu.objects.filter(
+            rolemenu__role__in=user_roles,
+            is_deleted=0
+        ).distinct().order_by('order')
+        
+        # 构建完整的菜单树结构
+        tree_data = build_menu_tree_for_role(all_menus)
+        
+        # 获取指定用户已有的权限菜单
+        default_checked_keys = []
+        if int(user_id) > 0:
+            # 获取指定用户的角色
+            target_user_roles = Role.objects.filter(users__id=user_id)
+            # 获取指定用户角色关联的菜单
+            user_menus = Menu.objects.filter(
+                rolemenu__role__in=target_user_roles,
+                is_deleted=0
+            ).distinct()
+            
+            # 提取菜单ID作为默认选中的键
+            default_checked_keys = [str(menu.id) for menu in user_menus]
+        else:
+            # 如果userId为0，返回当前用户已有的权限菜单
+            user_menus = Menu.objects.filter(
+                rolemenu__role__in=user_roles,
+                is_deleted=0
+            ).distinct()
+            
+            # 提取菜单ID作为默认选中的键
+            default_checked_keys = [str(menu.id) for menu in user_menus]
+        
+        return JsonResponse({
+            'code': 200,
+            'message': 'success',
+            'data': {
+                'defaultCheckedKeys': default_checked_keys,
+                'treeData': tree_data
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'服务器内部错误: {str(e)}',
+            'data': {}
+        })
+
+
+def build_menu_tree_for_role(menus):
+    """
+    为角色构建菜单树结构，用于菜单分配
+    """
+    # 创建菜单字典，便于查找
+    menu_dict = {}
+    for menu in menus:
+        menu_data = {
+            'title': menu.label,
+            'value': str(menu.id),
+            'key': str(menu.id),
+        }
+        # 初始化所有节点都有children字段
+        menu_data['children'] = []
+        menu_dict[menu.id] = menu_data
+    
+    # 构建树形结构
+    tree = []
+    for menu in menus:
+        menu_data = menu_dict[menu.id]
+        # 如果有父菜单且父菜单在权限内，则添加到父菜单的children中
+        if menu.parent_id and menu.parent_id in menu_dict:
+            menu_dict[menu.parent_id]['children'].append(menu_data)
+        else:
+            # 否则作为根节点添加
+            tree.append(menu_data)
+    
+    # 移除空的children字段
+    def remove_empty_children(items):
+        for item in items:
+            if 'children' in item and item['children']:
+                remove_empty_children(item['children'])
+            elif 'children' in item and not item['children']:
+                del item['children']
+    
+    remove_empty_children(tree)
+    
+    # 按照菜单顺序排序
+    def sort_children(items):
+        if not items:
+            return
+        items.sort(key=lambda x: int(x['value']))  # 按菜单ID排序
+        for item in items:
+            if 'children' in item and item['children']:
+                sort_children(item['children'])
+    
+    sort_children(tree)
+    
+    return tree
+
+
+# 保存用户菜单权限接口
+@csrf_exempt
+@auth_required('PUT')
+def save_authorize(request):
+    try:
+        # 解析请求体中的JSON数据
+        import json
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'code': 400,
+                'message': '请求数据格式错误',
+                'data': {}
+            })
+        
+        # 获取参数
+        user_id = data.get('userId')
+        menu_ids = data.get('menuIds', [])
+        
+        # 参数校验
+        if not user_id:
+            return JsonResponse({
+                'code': 400,
+                'message': '缺少必要参数: userId',
+                'data': {}
+            })
+        
+        # 检查用户是否存在
+        try:
+            from systems.user.models import User
+            user = User.objects.get(id=user_id, is_deleted=0)
+        except User.DoesNotExist:
+            return JsonResponse({
+                'code': 404,
+                'message': '用户不存在',
+                'data': {}
+            })
+        
+        # 获取用户当前的角色
+        user_roles = user.roles.filter(is_deleted=0)
+        if not user_roles.exists():
+            return JsonResponse({
+                'code': 400,
+                'message': '用户未分配角色',
+                'data': {}
+            })
+        
+        # 删除用户角色原有的菜单关联
+        from systems.role.models import RoleMenu
+        RoleMenu.objects.filter(role__in=user_roles).delete()
+        
+        # 为用户角色添加新的菜单关联
+        role_menus = []
+        for role in user_roles:
+            for menu_id in menu_ids:
+                try:
+                    menu = Menu.objects.get(id=menu_id, is_deleted=0)
+                    role_menus.append(RoleMenu(role=role, menu=menu))
+                except Menu.DoesNotExist:
+                    # 如果菜单不存在，则跳过
+                    pass
+        
+        # 批量创建角色菜单关联
+        if role_menus:
+            RoleMenu.objects.bulk_create(role_menus)
+        
+        return JsonResponse({
+            'code': 200,
+            'message': '用户菜单权限保存成功',
+            'data': {}
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'code': 500,
+            'message': f'服务器内部错误: {str(e)}',
+            'data': {}
+        })
+
