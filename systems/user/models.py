@@ -3,6 +3,7 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser
 from rest_framework import serializers
 
+from systems.permission.models import Permission
 from systems.role.models import Role
 
 class User(AbstractBaseUser):
@@ -16,6 +17,7 @@ class User(AbstractBaseUser):
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
     roles = models.ManyToManyField(Role, related_name='users', through='UserRole')
+    permissions = models.ManyToManyField(Permission, related_name='permissions', through='UserPermission')
     
     # 添加软删除标识字段
     is_deleted = models.IntegerField(default=0, verbose_name='是否删除')
@@ -70,3 +72,12 @@ class UserRole(models.Model):
         
     def __str__(self):
         return f"{self.user} - {self.role}"
+    
+# 用户-权限关联表
+class UserPermission(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='用户ID', db_column='user_id')
+    permission = models.ForeignKey(Permission, on_delete=models.CASCADE, verbose_name='权限ID', db_column='permission_id')
+
+    class Meta:
+        db_table = 'user_permission'
+        verbose_name = '用户权限'

@@ -1,5 +1,6 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
+from systems import role
 from systems.menu.models import Menu
 from systems.role.models import Role
 from common.decorators import auth_required
@@ -723,23 +724,42 @@ def detail(request):
 def tree(request):
     try:
         # 获取用户ID参数
-        user_id = request.GET.get('userId', 0)
+        user_id = request.GET.get('userId')
+        # 获取角色ID参数
+        role_id = request.GET.get('roleId')
         
-        # 获取当前用户的角色
-        user_roles = Role.objects.filter(users=request.current_user)
-        
-        # 获取当前角色可以获取到的全部菜单列表
-        all_menus = Menu.objects.filter(
-            rolemenu__role__in=user_roles,
-            is_deleted=0
-        ).distinct().order_by('order')
+        # 如果有userId则通过用户id获取，如果有roleId则从角色id获取
+        if user_id:
+            # 获取当前用户的角色
+            user_roles = Role.objects.filter(users=request.current_user)
+            
+            # 获取当前角色可以获取到的全部菜单列表
+            all_menus = Menu.objects.filter(
+                rolemenu__role__in=user_roles,
+                is_deleted=0
+            ).distinct().order_by('order')
+
+        elif role_id:
+            # 获取指定角色可以获取到的全部菜单列表
+            all_menus = Menu.objects.filter(
+                rolemenu__role__id=role_id,
+                is_deleted=0
+            ).distinct().order_by('order')
+        else:
+            # 默认情况下获取当前用户的角色菜单
+            user_roles = Role.objects.filter(users=request.current_user)
+            all_menus = Menu.objects.filter(
+                rolemenu__role__in=user_roles,
+                is_deleted=0
+            ).distinct().order_by('order')
+
         
         # 构建完整的菜单树结构
         tree_data = build_menu_tree_for_role(all_menus)
         
         # 获取指定用户已有的权限菜单
         default_checked_keys = []
-        if int(user_id) > 0:
+        if user_id and int(user_id) > 0:
             # 获取指定用户的角色
             target_user_roles = Role.objects.filter(users__id=user_id)
             # 获取指定用户角色关联的菜单
@@ -750,8 +770,26 @@ def tree(request):
             
             # 提取菜单ID作为默认选中的键
             default_checked_keys = [str(menu.id) for menu in user_menus]
-        else:
+        elif user_id and int(user_id) == 0:
             # 如果userId为0，返回当前用户已有的权限菜单
+            user_menus = Menu.objects.filter(
+                rolemenu__role__in=user_roles,
+                is_deleted=0
+            ).distinct()
+            
+            # 提取菜单ID作为默认选中的键
+            default_checked_keys = [str(menu.id) for menu in user_menus]
+        elif role_id:
+            # 如果提供了角色ID，获取该角色的菜单作为默认选中项
+            role_menus = Menu.objects.filter(
+                rolemenu__role__id=role_id,
+                is_deleted=0
+            ).distinct()
+            
+            # 提取菜单ID作为默认选中的键
+            default_checked_keys = [str(menu.id) for menu in role_menus]
+        else:
+            # 默认情况下返回当前用户已有的权限菜单
             user_menus = Menu.objects.filter(
                 rolemenu__role__in=user_roles,
                 is_deleted=0
@@ -788,6 +826,8 @@ def build_menu_tree_for_role(menus):
             'title': menu.label,
             'value': str(menu.id),
             'key': str(menu.id),
+            'type': menu.type,
+            'icon': menu.icon,
         }
         # 初始化所有节点都有children字段
         menu_data['children'] = []

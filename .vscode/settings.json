@@ -4,5 +4,6 @@
         "simplejwt",
         "rolepermission",
         "rolemenu",
+        "userpermission",
     ]
 }

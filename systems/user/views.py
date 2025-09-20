@@ -45,20 +45,12 @@ def login(request):
     # 序列化用户
     user_dict = UserSerializer(user).data
 
-    # 获取用户关联的所有角色
-    user_roles = user.roles.all()
-    role_list = []
-    for role in user_roles:
-        role_list.append({
-            'id': role.id,
-            'name': role.name,
-            'description': role.description
-        })
+    # 获取用户关联的所有权限
+    user_permissions = user.permissions.all()
 
     # 获取角色关联的所有权限
-    permissions = Permission.objects.filter(rolepermission__role__in=user_roles).distinct()
     permission_list = []
-    for permission in permissions:
+    for permission in user_permissions:
         permission_list.append(permission.name)
 
     return JsonResponse({

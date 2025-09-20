@@ -92,6 +92,42 @@ VALUES
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `permission` WHERE name='/content/article/view')),
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `permission` WHERE name='/content/article/delete'));
 
+-- 关联用户与权限
+INSERT INTO `user_permission` (user_id, permission_id) 
+VALUES
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/dashboard')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/demo')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/demo/copy')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/demo/editor')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/demo/wangEditor')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/demo/virtualScroll')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/demo/watermark')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user/index')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user/create')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user/update')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user/view')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user/delete')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/user/authority')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/role')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/role/index')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/role/create')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/role/update')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/role/view')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/role/delete')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/menu')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/menu/index')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/menu/create')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/menu/update')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/menu/view')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/authority/menu/delete')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/content/article')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/content/article/index')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/content/article/create')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/content/article/update')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/content/article/view')),
+    ((SELECT id FROM `user` WHERE username='admin'), (SELECT id FROM `permission` WHERE name='/content/article/delete'));
+
 -- 禁用外键约束检查
 SET FOREIGN_KEY_CHECKS = 0;
 
