@@ -10,8 +10,8 @@ class Article(models.Model):
     status = models.SmallIntegerField(default=1, choices=((1, '发布'), (0, '草稿')), verbose_name='状态')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='创建时间')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='更新时间')
-    creator = models.CharField(max_length=100, null=True, blank=True, verbose_name='创建者')
-    updater = models.CharField(max_length=100, null=True, blank=True, verbose_name='更新者')
+    created_user = models.CharField(max_length=100, null=True, blank=True, verbose_name='创建者')
+    updated_user = models.CharField(max_length=100, null=True, blank=True, verbose_name='更新者')
     
     # 添加软删除标识字段
     is_deleted = models.IntegerField(default=0, verbose_name='是否删除')
@@ -47,4 +47,3 @@ class ArticleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Article
         fields = '__all__'
-        # exclude = ()

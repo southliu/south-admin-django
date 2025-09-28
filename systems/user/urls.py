@@ -14,4 +14,6 @@ urlpatterns = [
     path('update/<int:user_id>', views.update, name='update'),
     path('delete/<int:user_id>', views.delete, name='delete'),
     path('updatePassword', views.update_password, name='update_password'),
+    path('authorize', views.authorize, name='authorize'),
+    path('authorize/save', views.save_user_authorization, name='save_user_authorization'),
 ]

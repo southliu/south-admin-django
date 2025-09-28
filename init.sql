@@ -235,6 +235,10 @@ SELECT '查看用户', 'View', 3, NULL, 1, 1, NOW(), NOW(), parent_menu.id, 0, (
 FROM menu parent_menu WHERE parent_menu.router = '/system/user';
 
 INSERT INTO menu (label, label_en, type, router, `order`, state, created_at, updated_at, parent_id, is_deleted, permission_id)
+SELECT '用户权限按钮', 'View', 3, NULL, 5, 1, NOW(), NOW(), parent_menu.id, 0, (SELECT id FROM permission WHERE name = '/authority/user/authority')
+FROM menu parent_menu WHERE parent_menu.router = '/system/user';
+
+INSERT INTO menu (label, label_en, type, router, `order`, state, created_at, updated_at, parent_id, is_deleted, permission_id)
 SELECT '菜单列表', 'Index', 3, NULL, 0, 1, NOW(), NOW(), parent_menu.id, 0, (SELECT id FROM permission WHERE name = '/authority/menu/index')
 FROM menu parent_menu WHERE parent_menu.router = '/system/menu';
 
@@ -323,6 +327,7 @@ VALUES
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='创建用户')),
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='修改用户')),
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='删除用户')),
+    ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='用户权限按钮')),
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='菜单列表')),
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='查看菜单')),
     ((SELECT id FROM `role` WHERE name='系统管理员'), (SELECT id FROM `menu` WHERE label='创建菜单')),

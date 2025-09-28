@@ -1,9 +1,8 @@
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from systems import role
 from systems.menu.models import Menu
 from systems.role.models import Role
 from common.decorators import auth_required
+from common.responses import success_response, error_response, paginate_response, model_to_dict
 from systems.permission.models import Permission
 
 # 列表接口
@@ -58,18 +57,10 @@ def list(request):
         
         menu_tree = filter_menu_tree_by_state(menu_tree)
         
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': menu_tree
-        })
+        return success_response(menu_tree)
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 def build_menu_tree(menus):
@@ -207,24 +198,11 @@ def page(request):
         start_index = (page - 1) * page_size
         end_index = start_index + page_size
         paginated_tree = menu_tree[start_index:end_index]
-        
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': {
-                'items': paginated_tree,
-                'page': page,
-                'pageSize': page_size,
-                'total': total,
-            }
-        })
+
+        return paginate_response(paginated_tree, page, page_size, total)
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 添加菜单创建接口
@@ -237,11 +215,7 @@ def create(request):
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
-            return JsonResponse({
-                'code': 400,
-                'message': '请求数据格式错误',
-                'data': {}
-            })
+            return error_response('请求数据格式错误', 400)
         
         # 获取参数
         label = data.get('label')
@@ -257,19 +231,11 @@ def create(request):
         
         # 参数校验
         if not label or not type_val:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少必要参数: label 或 type',
-                'data': {}
-            })
+            return error_response('缺少必要参数: 中文名称或类型', 400)
         
         # 权限操作操作但rule不存在
         if not rule and actions:
-            return JsonResponse({
-                'code': 400,
-                'message': '权限标识不存在则无法快捷创建权限',
-                'data': {}
-            })
+            return error_response('权限标识不存在则无法快捷创建权限', 400)
         
         # 检查权限是否存在
         if rule:
@@ -277,19 +243,15 @@ def create(request):
                 # 尝试获取已存在的权限
                 permission = Permission.objects.get(name=rule)
                 # 如果权限已存在，返回错误信息
-                return JsonResponse({
-                    'code': 400,
-                    'message': '权限已存在',
-                    'data': {
-                        'permission_id': permission.id,
-                        'permission_name': permission.name
-                    }
+                return error_response('权限已存在', 400, {
+                    'permission_id': permission.id,
+                    'permission_name': permission.name
                 })
             except Permission.DoesNotExist:
                 # 权限不存在，创建新权限
                 permission = Permission.objects.create(
                     name=rule,
-                    description=f"菜单 {label} 的权限"
+                    description=f"查看{label}权限"
                 )
         else:
             permission = None
@@ -300,11 +262,7 @@ def create(request):
             try:
                 parent_menu = Menu.objects.get(id=parent_id)
             except Menu.DoesNotExist:
-                return JsonResponse({
-                    'code': 400,
-                    'message': '指定的父菜单不存在',
-                    'data': {}
-                })
+                return error_response('指定的父菜单不存在', 400)
         
         # 创建菜单
         menu = Menu.objects.create(
@@ -331,7 +289,7 @@ def create(request):
                     # 权限不存在，创建新权限
                     action_permission = Permission.objects.create(
                         name=action_permission_name,
-                        description=f"菜单 {label} 的 {action} 权限"
+                        description=f"{label}-{action}权限"
                     )
     
         # 为当前用户的角色添加菜单关联
@@ -394,31 +352,13 @@ def create(request):
                             pass
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '菜单创建成功',
-            'data': {
-                'id': menu.id,
-                'label': menu.label,
-                'labelEn': menu.label_en,
-                'type': menu.type,
-                'icon': menu.icon,
-                'router': menu.router,
-                'permission': menu.permission.name if menu.permission else None,
-                'order': menu.order,
-                'state': menu.state,
-                'parentId': menu.parent.id if menu.parent else None,
-                'createdAt': menu.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'updatedAt': menu.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            }
-        })
+        menu_data = model_to_dict(menu)
+        menu_data['permission'] = menu.permission.name if menu.permission else None
+        menu_data['parentId'] = menu.parent.id if menu.parent else None
+        return success_response(menu_data, '菜单创建成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 # 删除菜单接口
 @csrf_exempt
@@ -430,36 +370,20 @@ def delete(request, menu_id):
             # 使用默认管理器，不包含已软删除的记录
             menu = Menu.objects.get(id=menu_id)
         except Menu.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '菜单不存在',
-                'data': {}
-            })
+            return error_response('菜单不存在', 404)
         
         # 检查是否存在子菜单
         if menu.get_children().filter(is_deleted=False).exists():
-            return JsonResponse({
-                'code': 400,
-                'message': '存在子菜单，请先删除子菜单',
-                'data': {}
-            })
+            return error_response('存在子菜单，请先删除子菜单', 400)
         
         # 执行软删除操作
         menu.delete()  # 这里调用的是模型中重写的delete方法
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '菜单删除成功',
-            'data': {}
-        })
+        return success_response(None, '菜单删除成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 # 更新菜单接口
 @csrf_exempt
@@ -470,22 +394,14 @@ def update(request, menu_id):
         try:
             menu = Menu.objects.get(id=menu_id)
         except Menu.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '菜单不存在',
-                'data': {}
-            })
+            return error_response('菜单不存在', 404)
         
         # 解析请求体中的JSON数据
         import json
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
-            return JsonResponse({
-                'code': 400,
-                'message': '请求数据格式错误',
-                'data': {}
-            })
+            return error_response('请求数据格式错误', 400)
         
         # 获取参数
         label = data.get('label')
@@ -500,11 +416,7 @@ def update(request, menu_id):
         
         # 参数校验
         if not label or not type_val:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少必要参数: label 或 type',
-                'data': {}
-            })
+            return error_response('缺少必要参数: label 或 type', 400)
         
         # 检查父菜单是否存在
         parent_menu = None
@@ -513,17 +425,9 @@ def update(request, menu_id):
                 parent_menu = Menu.objects.get(id=parent_id)
                 # 检查不能将菜单设置为自己的子菜单
                 if parent_menu.id == menu.id:
-                    return JsonResponse({
-                        'code': 400,
-                        'message': '不能将菜单设置为自己的子菜单',
-                        'data': {}
-                    })
+                    return error_response('不能将菜单设置为自己的子菜单', 400)
             except Menu.DoesNotExist:
-                return JsonResponse({
-                    'code': 400,
-                    'message': '指定的父菜单不存在',
-                    'data': {}
-                })
+                return error_response('指定的父菜单不存在', 400)
         
         # 处理权限更新
         permission = menu.permission
@@ -532,13 +436,9 @@ def update(request, menu_id):
                 # 尝试获取已存在的权限
                 permission = Permission.objects.get(name=rule)
                 # 如果权限已存在，返回错误信息
-                return JsonResponse({
-                    'code': 400,
-                    'message': '权限已存在',
-                    'data': {
-                        'permission_id': permission.id,
-                        'permission_name': permission.name
-                    }
+                return error_response('权限已存在', 400, {
+                    'permission_id': permission.id,
+                    'permission_name': permission.name
                 })
             except Permission.DoesNotExist:
                 # 权限不存在，创建新权限
@@ -562,31 +462,14 @@ def update(request, menu_id):
         menu.save()
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '菜单更新成功',
-            'data': {
-                'id': menu.id,
-                'label': menu.label,
-                'labelEn': menu.label_en,
-                'type': menu.type,
-                'icon': menu.icon,
-                'router': menu.router,
-                'rule': menu.permission.name if menu.permission else None,
-                'order': menu.order,
-                'state': menu.state,
-                'parentId': menu.parent.id if menu.parent else None,
-                'createdAt': menu.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                'updatedAt': menu.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-            }
-        })
+        menu_data = model_to_dict(menu)
+        menu_data['permission'] = menu.permission.name if menu.permission else None
+        menu_data['parentId'] = menu.parent.id if menu.parent else None
+
+        return success_response(menu_data, '菜单更新成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 修改菜单状态接口
@@ -599,11 +482,7 @@ def change_state(request):
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
-            return JsonResponse({
-                'code': 400,
-                'message': '请求数据格式错误',
-                'data': {}
-            })
+            return error_response('请求数据格式错误', 400)
         
         # 获取参数
         menu_id = data.get('id')
@@ -611,57 +490,33 @@ def change_state(request):
         
         # 参数校验
         if menu_id is None:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少必要参数: id',
-                'data': {}
-            })
+            return error_response('缺少必要参数: id', 400)
         
         if state is None:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少必要参数: state',
-                'data': {}
-            })
+            return error_response('缺少必要参数: state', 400)
         
         # 验证state参数是否为有效值(0或1)
         if state not in [0, 1]:
-            return JsonResponse({
-                'code': 400,
-                'message': 'state参数必须为0或1',
-                'data': {}
-            })
+            return error_response('state参数必须为0或1', 400)
         
         # 检查菜单是否存在
         try:
             menu = Menu.objects.get(id=menu_id)
         except Menu.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '菜单不存在',
-                'data': {}
-            })
+            return error_response('菜单不存在', 404)
         
         # 更新菜单状态
         menu.state = state
         menu.save()
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '菜单状态更新成功',
-            'data': {
-                'id': menu.id,
-                'state': menu.state
-            }
-        })
+        return success_response({
+            'id': menu.id,
+            'state': menu.state
+        }, '菜单状态更新成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 获取菜单详情接口
@@ -672,279 +527,20 @@ def detail(request):
         # 获取菜单ID参数
         menu_id = request.GET.get('id')
         if not menu_id:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少参数: id',
-                'data': {}
-            })
+            return error_response('缺少参数: id', 400)
         
         # 检查菜单是否存在
         try:
             menu = Menu.objects.get(id=menu_id)
         except Menu.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '菜单不存在',
-                'data': {}
-            })
+            return error_response('菜单不存在', 404)
         
         # 返回菜单详情
-        menu_data = {
-            'id': menu.id,
-            'label': menu.label,
-            'labelEn': menu.label_en,
-            'type': menu.type,
-            'icon': menu.icon,
-            'router': menu.router,
-            'rule': menu.permission.name if menu.permission else None,
-            'order': menu.order,
-            'state': menu.state,
-            'parentId': menu.parent.id if menu.parent else None,
-            'createdAt': menu.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            'updatedAt': menu.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-        }
+        menu_data = model_to_dict(menu)
+        menu_data['parentId'] = menu.parent.id if menu.parent else None
+        menu_data['rule'] = menu.permission.name if menu.permission else None
         
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': menu_data
-        })
+        return success_response(menu_data)
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
-
-
-# 菜单树接口 - 返回用户已有权限和全部菜单列表
-@csrf_exempt
-@auth_required('GET')
-def tree(request):
-    try:
-        # 获取用户ID参数
-        user_id = request.GET.get('userId')
-        # 获取角色ID参数
-        role_id = request.GET.get('roleId')
-        
-        # 如果有userId则通过用户id获取，如果有roleId则从角色id获取
-        if user_id:
-            # 获取当前用户的角色
-            user_roles = Role.objects.filter(users=request.current_user)
-            
-            # 获取当前角色可以获取到的全部菜单列表
-            all_menus = Menu.objects.filter(
-                rolemenu__role__in=user_roles,
-                is_deleted=0
-            ).distinct().order_by('order')
-
-        elif role_id:
-            # 获取指定角色可以获取到的全部菜单列表
-            all_menus = Menu.objects.filter(
-                rolemenu__role__id=role_id,
-                is_deleted=0
-            ).distinct().order_by('order')
-        else:
-            # 默认情况下获取当前用户的角色菜单
-            user_roles = Role.objects.filter(users=request.current_user)
-            all_menus = Menu.objects.filter(
-                rolemenu__role__in=user_roles,
-                is_deleted=0
-            ).distinct().order_by('order')
-
-        
-        # 构建完整的菜单树结构
-        tree_data = build_menu_tree_for_role(all_menus)
-        
-        # 获取指定用户已有的权限菜单
-        default_checked_keys = []
-        if user_id and int(user_id) > 0:
-            # 获取指定用户的角色
-            target_user_roles = Role.objects.filter(users__id=user_id)
-            # 获取指定用户角色关联的菜单
-            user_menus = Menu.objects.filter(
-                rolemenu__role__in=target_user_roles,
-                is_deleted=0
-            ).distinct()
-            
-            # 提取菜单ID作为默认选中的键
-            default_checked_keys = [str(menu.id) for menu in user_menus]
-        elif user_id and int(user_id) == 0:
-            # 如果userId为0，返回当前用户已有的权限菜单
-            user_menus = Menu.objects.filter(
-                rolemenu__role__in=user_roles,
-                is_deleted=0
-            ).distinct()
-            
-            # 提取菜单ID作为默认选中的键
-            default_checked_keys = [str(menu.id) for menu in user_menus]
-        elif role_id:
-            # 如果提供了角色ID，获取该角色的菜单作为默认选中项
-            role_menus = Menu.objects.filter(
-                rolemenu__role__id=role_id,
-                is_deleted=0
-            ).distinct()
-            
-            # 提取菜单ID作为默认选中的键
-            default_checked_keys = [str(menu.id) for menu in role_menus]
-        else:
-            # 默认情况下返回当前用户已有的权限菜单
-            user_menus = Menu.objects.filter(
-                rolemenu__role__in=user_roles,
-                is_deleted=0
-            ).distinct()
-            
-            # 提取菜单ID作为默认选中的键
-            default_checked_keys = [str(menu.id) for menu in user_menus]
-        
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': {
-                'defaultCheckedKeys': default_checked_keys,
-                'treeData': tree_data
-            }
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
-
-
-def build_menu_tree_for_role(menus):
-    """
-    为角色构建菜单树结构，用于菜单分配
-    """
-    # 创建菜单字典，便于查找
-    menu_dict = {}
-    for menu in menus:
-        menu_data = {
-            'title': menu.label,
-            'value': str(menu.id),
-            'key': str(menu.id),
-            'type': menu.type,
-            'icon': menu.icon,
-        }
-        # 初始化所有节点都有children字段
-        menu_data['children'] = []
-        menu_dict[menu.id] = menu_data
-    
-    # 构建树形结构
-    tree = []
-    for menu in menus:
-        menu_data = menu_dict[menu.id]
-        # 如果有父菜单且父菜单在权限内，则添加到父菜单的children中
-        if menu.parent_id and menu.parent_id in menu_dict:
-            menu_dict[menu.parent_id]['children'].append(menu_data)
-        else:
-            # 否则作为根节点添加
-            tree.append(menu_data)
-    
-    # 移除空的children字段
-    def remove_empty_children(items):
-        for item in items:
-            if 'children' in item and item['children']:
-                remove_empty_children(item['children'])
-            elif 'children' in item and not item['children']:
-                del item['children']
-    
-    remove_empty_children(tree)
-    
-    # 按照菜单顺序排序
-    def sort_children(items):
-        if not items:
-            return
-        items.sort(key=lambda x: int(x['value']))  # 按菜单ID排序
-        for item in items:
-            if 'children' in item and item['children']:
-                sort_children(item['children'])
-    
-    sort_children(tree)
-    
-    return tree
-
-
-# 保存用户菜单权限接口
-@csrf_exempt
-@auth_required('PUT')
-def save_authorize(request):
-    try:
-        # 解析请求体中的JSON数据
-        import json
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({
-                'code': 400,
-                'message': '请求数据格式错误',
-                'data': {}
-            })
-        
-        # 获取参数
-        user_id = data.get('userId')
-        menu_ids = data.get('menuIds', [])
-        
-        # 参数校验
-        if not user_id:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少必要参数: userId',
-                'data': {}
-            })
-        
-        # 检查用户是否存在
-        try:
-            from systems.user.models import User
-            user = User.objects.get(id=user_id, is_deleted=0)
-        except User.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '用户不存在',
-                'data': {}
-            })
-        
-        # 获取用户当前的角色
-        user_roles = user.roles.filter(is_deleted=0)
-        if not user_roles.exists():
-            return JsonResponse({
-                'code': 400,
-                'message': '用户未分配角色',
-                'data': {}
-            })
-        
-        # 删除用户角色原有的菜单关联
-        from systems.role.models import RoleMenu
-        RoleMenu.objects.filter(role__in=user_roles).delete()
-        
-        # 为用户角色添加新的菜单关联
-        role_menus = []
-        for role in user_roles:
-            for menu_id in menu_ids:
-                try:
-                    menu = Menu.objects.get(id=menu_id, is_deleted=0)
-                    role_menus.append(RoleMenu(role=role, menu=menu))
-                except Menu.DoesNotExist:
-                    # 如果菜单不存在，则跳过
-                    pass
-        
-        # 批量创建角色菜单关联
-        if role_menus:
-            RoleMenu.objects.bulk_create(role_menus)
-        
-        return JsonResponse({
-            'code': 200,
-            'message': '用户菜单权限保存成功',
-            'data': {}
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
-
+        return error_response(f'服务器内部错误: {str(e)}')

@@ -1,12 +1,11 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
-from django.db.models import Q
 from common.decorators import auth_required
-from .models import Article, ArticleSerializer
+from .models import Article
 import json
 from datetime import datetime
+from common.responses import success_response, error_response, model_to_dict, paginate_response
 
 # 文章分页接口
 @csrf_exempt
@@ -40,34 +39,11 @@ def page(request):
         # 构建返回数据
         article_items = []
         for article in paginated_articles:
-            article_items.append({
-                'id': article.id,
-                'title': article.title,
-                'author': article.author,
-                'status': article.status,
-                'createdAt': article.created_at.strftime('%Y-%m-%d %H:%M:%S') if article.created_at else None,
-                'updatedAt': article.updated_at.strftime('%Y-%m-%d %H:%M:%S') if article.updated_at else None,
-                'creator': article.creator,
-                'updater': article.updater,
-            })
+            article_items.append(model_to_dict(article, camel_case=True))
         
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': {
-                'items': article_items,
-                'page': page,
-                'pageSize': page_size,
-                'total': total,
-                'totalPage': paginator.num_pages,
-            }
-        })
+        return paginate_response(article_items, page, page_size, total, {'totalPage': paginator.num_pages})
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 文章详情接口
@@ -78,47 +54,21 @@ def detail(request):
         # 获取文章ID参数
         article_id = request.GET.get('id')
         if not article_id:
-            return JsonResponse({
-                'code': 400,
-                'message': '缺少参数: id',
-                'data': {}
-            })
+            return error_response('缺少参数: id', 400)
         
         # 检查文章是否存在
         try:
             article = Article.objects.get(id=article_id, is_deleted=0)
         except Article.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '文章不存在',
-                'data': {}
-            })
+            return error_response('文章不存在', 404)
         
         # 返回文章详情
-        article_data = {
-            'id': article.id,
-            'title': article.title,
-            'author': article.author,
-            'content': article.content,
-            'status': article.status,
-            'createdAt': article.created_at.strftime('%Y-%m-%d %H:%M:%S') if article.created_at else None,
-            'updatedAt': article.updated_at.strftime('%Y-%m-%d %H:%M:%S') if article.updated_at else None,
-            'creator': article.creator,
-            'updater': article.updater,
-        }
+        article_data = model_to_dict(article, camel_case=True)
         
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': article_data
-        })
+        return success_response(article_data)
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 文章创建接口
@@ -130,11 +80,7 @@ def create(request):
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
-            return JsonResponse({
-                'code': 400,
-                'message': '请求数据格式错误',
-                'data': {}
-            })
+            return error_response('请求数据格式错误', 400)
         
         # 获取参数
         title = data.get('title')
@@ -142,15 +88,11 @@ def create(request):
         content = data.get('content')
         status = data.get('status', 1)
         # 获取创建者信息
-        creator = data.get('creator', request.current_user.username if hasattr(request, 'current_user') else None)
+        created_user = data.get('created_user', request.current_user.username if hasattr(request, 'current_user') else None)
         
         # 参数校验
         if not title:
-            return JsonResponse({
-                'code': 400,
-                'message': '文章标题不能为空',
-                'data': {}
-            })
+            return error_response('文章标题不能为空', 400)
         
         # 创建文章
         article = Article.objects.create(
@@ -158,33 +100,16 @@ def create(request):
             author=author,
             content=content,
             status=status,
-            creator=creator,
-            updater=creator,
+            created_user=created_user,
+            updated_user=created_user,
         )
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '文章创建成功',
-            'data': {
-                'id': article.id,
-                'title': article.title,
-                'author': article.author,
-                'content': article.content,
-                'status': article.status,
-                'createdAt': article.created_at.strftime('%Y-%m-%d %H:%M:%S') if article.created_at else None,
-                'updatedAt': article.updated_at.strftime('%Y-%m-%d %H:%M:%S') if article.updated_at else None,
-                'creator': article.creator,
-                'updater': article.updater,
-            }
-        })
+        article_data = model_to_dict(article, camel_case=True)
+        return success_response(article_data, '文章创建成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 文章更新接口
@@ -196,21 +121,13 @@ def update(request, article_id):
         try:
             article = Article.objects.get(id=article_id, is_deleted=0)
         except Article.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '文章不存在',
-                'data': {}
-            })
+            return error_response('文章不存在', 404)
         
         # 解析请求体中的JSON数据
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
-            return JsonResponse({
-                'code': 400,
-                'message': '请求数据格式错误',
-                'data': {}
-            })
+            return error_response('请求数据格式错误', 400)
         
         # 获取参数
         title = data.get('title')
@@ -218,15 +135,11 @@ def update(request, article_id):
         content = data.get('content')
         status = data.get('status')
         # 获取更新者信息
-        updater = data.get('updater', request.current_user.username if hasattr(request, 'current_user') else None)
+        updated_user = data.get('updated_user', request.current_user.username if hasattr(request, 'current_user') else None)
         
         # 参数校验
         if not title:
-            return JsonResponse({
-                'code': 400,
-                'message': '文章标题不能为空',
-                'data': {}
-            })
+            return error_response('文章标题不能为空', 400)
         
         # 更新文章信息
         article.title = title
@@ -237,34 +150,17 @@ def update(request, article_id):
         if status is not None:
             article.status = status
         # 设置更新者
-        if updater is not None:
-            article.updater = updater
+        if updated_user is not None:
+            article.updated_user = updated_user
         article.updated_at = datetime.now()
         article.save()
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '文章更新成功',
-            'data': {
-                'id': article.id,
-                'title': article.title,
-                'author': article.author,
-                'content': article.content,
-                'status': article.status,
-                'createdAt': article.created_at.strftime('%Y-%m-%d %H:%M:%S') if article.created_at else None,
-                'updatedAt': article.updated_at.strftime('%Y-%m-%d %H:%M:%S') if article.updated_at else None,
-                'creator': article.creator,
-                'updater': article.updater,
-            }
-        })
+        article_data = model_to_dict(article, camel_case=True)
+        return success_response(article_data, '文章更新成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 文章删除接口
@@ -276,28 +172,16 @@ def delete(request, article_id):
         try:
             article = Article.objects.get(id=article_id, is_deleted=0)
         except Article.DoesNotExist:
-            return JsonResponse({
-                'code': 404,
-                'message': '文章不存在',
-                'data': {}
-            })
+            return error_response('文章不存在', 404)
         
         # 执行软删除
         article.delete()
         
         # 返回成功响应
-        return JsonResponse({
-            'code': 200,
-            'message': '文章删除成功',
-            'data': {}
-        })
+        return success_response(None, '文章删除成功')
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
 
 
 # 获取全部未被软删除文章列表接口
@@ -311,26 +195,9 @@ def list_articles(request):
         # 构建返回数据
         article_items = []
         for article in articles:
-            article_items.append({
-                'id': article.id,
-                'title': article.title,
-                'author': article.author,
-                'status': article.status,
-                'createdAt': article.created_at.strftime('%Y-%m-%d %H:%M:%S') if article.created_at else None,
-                'updatedAt': article.updated_at.strftime('%Y-%m-%d %H:%M:%S') if article.updated_at else None,
-                'creator': article.creator,
-                'updater': article.updater,
-            })
+            article_items.append(model_to_dict(article, camel_case=True))
         
-        return JsonResponse({
-            'code': 200,
-            'message': 'success',
-            'data': article_items
-        })
+        return success_response(article_items)
         
     except Exception as e:
-        return JsonResponse({
-            'code': 500,
-            'message': f'服务器内部错误: {str(e)}',
-            'data': {}
-        })
+        return error_response(f'服务器内部错误: {str(e)}')
