@@ -258,7 +258,7 @@ def create(request):
         email = data.get('email')
         phone = data.get('phone')  # 获取电话字段
         status = data.get('status', 1)
-        roles = data.get('roles', [])  # 角色ID列表
+        roles = data.get('roleIds', [])  # 角色ID列表
         
         # 参数校验
         if not username:
