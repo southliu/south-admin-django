@@ -352,12 +352,25 @@ def create(request):
                             pass
         
         # 返回成功响应
-        menu_data = model_to_dict(menu)
-        menu_data['permission'] = menu.permission.name if menu.permission else None
-        menu_data['parentId'] = menu.parent.id if menu.parent else None
+        menu_data = {
+            'id': menu.id,
+            'label': menu.label,
+            'labelEn': menu.label_en,
+            'icon': menu.icon,
+            'type': menu.type,
+            'router': menu.router,
+            'permission': menu.permission.name if menu.permission else None,
+            'parentId': menu.parent.id if menu.parent else None,
+            'order': menu.order,
+            'state': menu.state,
+            'createdAt': menu.created_at.strftime('%Y-%m-%d %H:%M:%S') if menu.created_at else None,
+            'updatedAt': menu.updated_at.strftime('%Y-%m-%d %H:%M:%S') if menu.updated_at else None,
+        }
         return success_response(menu_data, '菜单创建成功')
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return error_response(f'服务器内部错误: {str(e)}')
 
 # 删除菜单接口
