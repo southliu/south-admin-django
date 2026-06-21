@@ -1,0 +1,11 @@
+database:
+  host: localhost
+  port: 3306
+  name: south_admin
+  user: root
+  password: your_password
+
+jwt:
+  secret_key: "django-insecure-(*1z#ns0nq+=u0qjg18$s*%xa7qvh73ltwu6k3%a6jlt4bucq0"
+  algorithm: HS256
+  access_token_expire_minutes: 1440

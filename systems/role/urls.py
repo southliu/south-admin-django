@@ -1,14 +1,12 @@
 from django.urls import path
-
-from . import views
+from systems.role import views
 
 urlpatterns = [
-    path('page', views.page, name='page'),
-    path('list', views.list_roles, name='list'),
-    path('create', views.create, name='create'),
-    path('<int:role_id>', views.delete, name='delete'),
-    path('update/<int:role_id>', views.update, name='update'),
-    path('detail', views.detail, name='detail'),
-    path('authorize', views.authorize, name='authorize'),
-    path('authorize/save', views.save_authorize, name='save_authorize'),
+    path("page", views.get_role_page),
+    path("detail", views.get_role_detail),
+    path("create", views.create_role),
+    path("list", views.get_role_list),
+    path("authorize", views.role_authorize),
+    path("update/<int:role_id>", views.update_role),
+    path("<int:role_id>", views.delete_role),
 ]

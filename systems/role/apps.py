@@ -2,5 +2,6 @@ from django.apps import AppConfig
 
 
 class RoleConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'systems.role'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "systems.role"
+    verbose_name = "角色管理"
