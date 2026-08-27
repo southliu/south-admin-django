@@ -98,10 +98,16 @@ def get_user_page(request):
     page = int(request.GET.get("page", 1))
     page_size = int(request.GET.get("pageSize", 10))
     username = request.GET.get("username", None)
+    email = request.GET.get("email", None)
+    phone = request.GET.get("phone", None)
 
     queryset = SysUser.objects.filter(is_deleted=0)
     if username:
         queryset = queryset.filter(username__icontains=username)
+    if email:
+        queryset = queryset.filter(email__icontains=email)
+    if phone:
+        queryset = queryset.filter(phone__icontains=phone)
 
     total = queryset.count()
     users = queryset.select_related().prefetch_related("roles").order_by("-create_at")[
@@ -243,6 +249,19 @@ def delete_user(request, user_id):
     user.save()
 
     return success()
+
+
+@require_http_methods(["POST"])
+def batch_delete_user(request):
+    data = _parse_body(request)
+    ids = data.get("ids") or []
+    if not ids:
+        return error("请选择要删除的用户")
+
+    SysUser.objects.filter(id__in=ids, is_deleted=0).update(
+        is_deleted=1, deleted_at=datetime.now()
+    )
+    return success(message="批量删除成功")
 
 
 @require_http_methods(["GET"])

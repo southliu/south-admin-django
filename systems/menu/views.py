@@ -240,14 +240,19 @@ def update_menu(request, menu_id):
     if "parentId" in data:
         menu.parent_id = data["parentId"]
 
+    # 同步权限：非空 → 重命名或新建；空值（null/空串）→ 解除关联，权限记录保留由权限管理维护
     rule = data.get("rule")
-    if rule is not None:
+    if rule:
         if menu.permission:
+            if SysPermission.objects.filter(name=rule).exclude(id=menu.permission.id).exists():
+                return error(f"权限名称 {rule} 已被使用")
             menu.permission.name = rule
             menu.permission.save()
         else:
             permission = SysPermission.objects.create(name=rule)
             menu.permission = permission
+    elif "rule" in data and menu.permission:
+        menu.permission = None
 
     menu.save()
 
@@ -302,6 +307,9 @@ def change_menu_state(request):
     data = _parse_body(request)
     menu_id = data.get("id")
     state = data.get("state")
+
+    if state not in (0, 1):
+        return error("state 参数错误，仅允许 0（隐藏）或 1（显示）")
 
     try:
         menu = SysMenu.objects.get(id=menu_id, is_deleted=0)
